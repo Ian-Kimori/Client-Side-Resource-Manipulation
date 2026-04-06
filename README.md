@@ -121,3 +121,72 @@ If the code above the line is confusing (e.g., it just says `script.src = url;`)
     * **FAIL:** If the script loads a file or executes code based on `location.search` or `location.hash`.
 
 **What are the 5 lines of code directly above that `appendChild` line?** Copy and paste them here, and we can finish this trace together.
+
+You have found a **JavaScript Execution Sink**. In the plumber's analogy, this is the "Electric Motor" of the pipe system. Instead of just moving water (data), this line takes the "Water" (`code`) and turns it into **Action** (running a script).
+
+This is a critical moment in your audit. If an attacker can get their own "Water" into that `code` variable, they have achieved **DOM-based XSS**.
+
+---
+
+### 1. The "Water System" Analysis
+* **The Intake (Source):** Where the `code` variable is first defined.
+* **The Pipe (The Flow):** Any functions that process the `code` string.
+* **The Tap (The Sink):** `script.text = code;` (followed by the `appendChild` you found earlier).
+
+
+
+---
+
+### 2. Trace the "Intake" (The Source)
+You need to find out where that `code` string comes from. Look at the lines directly above `script.text = code;`.
+
+**Search Strategy (`Ctrl + Shift + F`):**
+Search for: `code =` or `var code =`.
+
+#### ✅ Scenario A: THE PASS (Secure)
+If you see:
+```javascript
+var code = "console.log('Zabbix Initialized');";
+```
+* **Why:** The code is a hardcoded string. No matter what the user puts in the URL, this string never changes.
+* **Verdict:** **STOP.** This is a **PASS**.
+
+#### ❌ Scenario B: THE FAIL (Vulnerable)
+If you see:
+```javascript
+var code = (new URLSearchParams(window.location.search)).get("cb");
+```
+* **Why:** The "Intake" pulls directly from a URL parameter. An attacker can visit `site.com/?cb=alert(document.domain)` and it will execute.
+* **Verdict:** **FAIL.**
+
+---
+
+### 3. The "Live" Trace (The Call Stack)
+If the code is complex (e.g., `code` is passed into a function as an argument), use the **Call Stack**:
+
+1.  **Set a Breakpoint** on the line: `script.text = code;`.
+2.  **Trigger the action** (usually a page refresh).
+3.  When it pauses, look at the **Scope** pane. What is the value of `code`?
+4.  **Click the function below** in the **Call Stack**.
+5.  Repeat until you find the very first place the `code` string was created.
+
+
+
+---
+
+### 4. Special Case: AJAX/Server-Side Data
+In many professional apps like Zabbix, `code` comes from an **AJAX response** (the server sends a piece of JS to run).
+
+* **The Trace:** You might see `code = response.data;`.
+* **The Verdict:** If the server is sending the code, this is technically a **PASS** for *Client-Side* security. You've proven the client isn't the one creating the vulnerability; the "Water" is coming clean from the "City Main" (the Server).
+
+---
+
+### Summary Checklist for this Trace
+* **Sink:** `script.text` (The Motor).
+* **Trace:** Use the **Call Stack** to find the origin of the `code` variable.
+* **Verdict:**
+    * **PASS:** If the code is hardcoded or comes from a trusted Server Response.
+    * **FAIL:** If any part of the `code` string contains data from `location.hash` or `location.search`.
+
+**What does the line immediately above `script.text = code;` say?** Does it show where `code` was defined? Copy that line here and we can finish this "Clean" audit item.
